@@ -10,6 +10,8 @@ import '../pages/discover/discover_page.dart';
 import '../pages/discover/moments_page.dart';
 import '../pages/profile/profile_page.dart';
 import '../pages/settings/api_settings_page.dart';
+import '../pages/settings/general_settings_page.dart';
+import '../pages/delivery/delivery_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -44,7 +46,6 @@ final appRouter = GoRouter(
         ),
       ],
     ),
-    // 全屏路由（不在 ShellRoute 内）
     GoRoute(
       path: '/chat/:contactId',
       parentNavigatorKey: _rootNavigatorKey,
@@ -69,9 +70,19 @@ final appRouter = GoRouter(
       builder: (context, state) => const ApiSettingsPage(),
     ),
     GoRoute(
+      path: '/settings/general',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const GeneralSettingsPage(),
+    ),
+    GoRoute(
       path: '/discover/moments',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const MomentsPage(),
+    ),
+    GoRoute(
+      path: '/delivery',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const DeliveryPage(),
     ),
   ],
 );

@@ -18,7 +18,7 @@ class DatabaseService {
     final path = join(dbPath, 'talk_ai.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onOpen: _onOpen,
@@ -95,6 +95,26 @@ class DatabaseService {
     ''');
     await db.execute('CREATE INDEX idx_moments_contact_id ON moments(contact_id)');
     await db.execute('CREATE INDEX idx_moments_created_at ON moments(created_at)');
+
+    await db.execute('''
+      CREATE TABLE chat_presets (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        segments TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE cart_items (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        price REAL NOT NULL DEFAULT 0,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        shop TEXT
+      )
+    ''');
   }
 
   Future<void> _onOpen(Database db) async {
@@ -122,6 +142,26 @@ class DatabaseService {
       ''');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_moments_contact_id ON moments(contact_id)');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_moments_created_at ON moments(created_at)');
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS chat_presets (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          segments TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cart_items (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          price REAL NOT NULL DEFAULT 0,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          shop TEXT
+        )
+      ''');
     }
   }
 

@@ -14,17 +14,20 @@ class DiscoverPage extends StatelessWidget {
         backgroundColor: WeChatColors.appBarBackground,
       ),
       body: ListView(
-        children: const [
-          _DiscoverSection(items: [
-            _DiscoverItem(icon: Icons.public, label: '朋友圈', color: Color(0xFF07C160)),
+        children: [
+          const _DiscoverSection(items: [
+            _DiscoverItem(
+                icon: Icons.public,
+                label: '朋友圈',
+                color: Color(0xFF07C160),
+                route: '/discover/moments'),
           ]),
-          _DiscoverSection(items: [
-            _DiscoverItem(icon: Icons.qr_code_scanner, label: '扫一扫', color: Color(0xFF1E90FF)),
-            _DiscoverItem(icon: Icons.search, label: '搜一搜', color: Color(0xFF1E90FF)),
-          ]),
-          _DiscoverSection(items: [
-            _DiscoverItem(icon: Icons.shopping_bag_outlined, label: '购物', color: Color(0xFFFF6B35)),
-            _DiscoverItem(icon: Icons.games_outlined, label: '游戏', color: Color(0xFF7ED321)),
+          const _DiscoverSection(items: [
+            _DiscoverItem(
+                icon: Icons.delivery_dining,
+                label: '点外卖',
+                color: Color(0xFFFF6B35),
+                route: '/delivery'),
           ]),
         ],
       ),
@@ -49,8 +52,7 @@ class _DiscoverSection extends StatelessWidget {
               return Column(
                 children: [
                   item,
-                  if (!isLast)
-                    const Divider(height: 0, indent: 56),
+                  if (!isLast) const Divider(height: 0, indent: 56),
                 ],
               );
             }).toList(),
@@ -65,13 +67,13 @@ class _DiscoverItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  final bool comingSoon;
+  final String route;
 
   const _DiscoverItem({
     required this.icon,
     required this.label,
     required this.color,
-    this.comingSoon = false,
+    required this.route,
   });
 
   @override
@@ -87,18 +89,9 @@ class _DiscoverItem extends StatelessWidget {
         child: Icon(icon, color: Colors.white, size: 18),
       ),
       title: Text(label),
-      trailing: comingSoon
-          ? const Chip(
-              label: Text('即将上线', style: TextStyle(fontSize: 10)),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              padding: EdgeInsets.zero,
-            )
-          : const Icon(Icons.chevron_right, color: WeChatColors.textHint),
-      onTap: comingSoon ? null : () {
-        if (label == '朋友圈') {
-          context.push('/discover/moments');
-        }
-      },
+      trailing:
+          const Icon(Icons.chevron_right, color: WeChatColors.textHint),
+      onTap: () => context.push(route),
     );
   }
 }

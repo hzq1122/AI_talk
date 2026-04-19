@@ -1,8 +1,10 @@
 import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_service.dart';
 import '../database/contact_dao.dart';
 import '../database/message_dao.dart';
 import '../database/api_config_dao.dart';
+import '../database/preset_dao.dart';
 import '../api/llm_service.dart';
 import '../api/openai_adapter.dart';
 import '../api/anthropic_adapter.dart';
@@ -15,6 +17,7 @@ class ChatService {
   late final ContactDao _contactDao;
   late final MessageDao _messageDao;
   late final ApiConfigDao _apiConfigDao;
+  late final PresetDao _presetDao;
   final _uuid = const Uuid();
   final _contextManager = const ContextManager(
     strategy: ContextStrategy.slidingWindow,
@@ -26,6 +29,7 @@ class ChatService {
     _contactDao = ContactDao(db);
     _messageDao = MessageDao(db);
     _apiConfigDao = ApiConfigDao(db);
+    _presetDao = PresetDao(db);
   }
 
   // ─── 联系人 ───────────────────────────────────────────────────────────────
@@ -131,9 +135,8 @@ class ChatService {
       config,
     );
 
-    // 5. 构建 system prompt
-    final systemPrompt =
-        contact.systemPrompt.isNotEmpty ? contact.systemPrompt : null;
+    // 5. 构建 system prompt（包含全局提示词 + 预设 + 角色提示词）
+    final systemPrompt = await _buildFullSystemPrompt(contact);
 
     // 6. 选择 Adapter
     final LlmService service = config.provider == LlmProvider.anthropic
@@ -173,4 +176,31 @@ class ChatService {
 
   Future<void> clearUnread(String contactId) =>
       _contactDao.clearUnread(contactId);
+
+  Future<String?> _buildFullSystemPrompt(Contact contact) async {
+    final parts = <String>[];
+
+    // 全局提示词
+    final prefs = await SharedPreferences.getInstance();
+    final globalEnabled = prefs.getBool('global_prompt_enabled') ?? false;
+    if (globalEnabled) {
+      final globalText = prefs.getString('global_prompt_text') ??
+          '你现在是在聊天，并非在现实，请让你的回复更符合聊天时的状态';
+      if (globalText.isNotEmpty) parts.add(globalText);
+    }
+
+    // 对话补全预设
+    final presets = await _presetDao.getAll();
+    for (final preset in presets) {
+      final text = preset.buildPromptText();
+      if (text.isNotEmpty) parts.add(text);
+    }
+
+    // 角色 system prompt
+    if (contact.systemPrompt.isNotEmpty) {
+      parts.add(contact.systemPrompt);
+    }
+
+    return parts.isEmpty ? null : parts.join('\n\n');
+  }
 }

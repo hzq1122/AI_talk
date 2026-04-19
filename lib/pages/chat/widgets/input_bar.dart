@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../models/cart_item.dart';
+import '../../../providers/cart_provider.dart';
 import '../../../theme/wechat_colors.dart';
 
-class InputBar extends StatefulWidget {
+class InputBar extends ConsumerStatefulWidget {
   final void Function(String text) onSend;
   final void Function(String type, Map<String, dynamic> metadata)? onSendSpecial;
   final bool enabled;
@@ -14,10 +17,10 @@ class InputBar extends StatefulWidget {
   });
 
   @override
-  State<InputBar> createState() => _InputBarState();
+  ConsumerState<InputBar> createState() => _InputBarState();
 }
 
-class _InputBarState extends State<InputBar> {
+class _InputBarState extends ConsumerState<InputBar> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _hasText = false;
@@ -72,6 +75,15 @@ class _InputBarState extends State<InputBar> {
                 onTap: () {
                   Navigator.of(ctx).pop();
                   _showDeliveryDialog(context);
+                },
+              ),
+              _PlusMenuItem(
+                icon: Icons.restaurant_menu,
+                label: '点餐',
+                color: const Color(0xFFFF6B35),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _showQuickOrderDialog(context);
                 },
               ),
               _PlusMenuItem(
@@ -196,6 +208,83 @@ class _InputBarState extends State<InputBar> {
             child: const Text('下单'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showQuickOrderDialog(BuildContext context) {
+    final foods = [
+      {'name': '珍珠奶茶', 'price': 12.0},
+      {'name': '生椰拿铁', 'price': 16.0},
+      {'name': '黄焖鸡米饭', 'price': 18.0},
+      {'name': '蛋炒饭', 'price': 12.0},
+      {'name': '炸鸡翅', 'price': 15.0},
+      {'name': '薯条', 'price': 8.0},
+    ];
+    final selected = <int>{};
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('快速点餐'),
+          content: SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('选择要添加到购物车的食品',
+                    style: TextStyle(fontSize: 13, color: WeChatColors.textSecondary)),
+                const SizedBox(height: 12),
+                ...List.generate(foods.length, (i) {
+                  final food = foods[i];
+                  return CheckboxListTile(
+                    title: Text(food['name'] as String),
+                    subtitle: Text('¥${(food['price'] as double).toStringAsFixed(0)}'),
+                    value: selected.contains(i),
+                    activeColor: WeChatColors.primary,
+                    onChanged: (v) => setDialogState(() {
+                      if (v == true) {
+                        selected.add(i);
+                      } else {
+                        selected.remove(i);
+                      }
+                    }),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  );
+                }),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('取消')),
+            ElevatedButton(
+              onPressed: selected.isEmpty
+                  ? null
+                  : () {
+                      for (final i in selected) {
+                        final food = foods[i];
+                        ref.read(cartProvider.notifier).addItem(CartItem(
+                              id: '',
+                              name: food['name'] as String,
+                              price: food['price'] as double,
+                              shop: '外卖商城',
+                            ));
+                      }
+                      Navigator.of(ctx).pop();
+                      final names = selected
+                          .map((i) => foods[i]['name'] as String)
+                          .join('、');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('已添加 $names 到购物车')),
+                      );
+                    },
+              child: const Text('加入购物车'),
+            ),
+          ],
+        ),
       ),
     );
   }

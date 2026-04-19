@@ -175,7 +175,7 @@ class _ContactsPageState extends ConsumerState<ContactsPage> {
   }
 
   void _openContact(Contact contact) {
-    context.push('/contact/detail/${contact.id}', extra: contact);
+    context.push('/chat/${contact.id}', extra: contact);
   }
 
   Future<void> _showAddContact(BuildContext context) async {
@@ -185,7 +185,9 @@ class _ContactsPageState extends ConsumerState<ContactsPage> {
       builder: (ctx) => _EditContactDialog(configs: configs),
     );
     if (result != null) {
-      await ref.read(contactsProvider.notifier).add(result);
+      final saved = await ref.read(contactsProvider.notifier).addAndReturn(result);
+      if (!mounted) return;
+      context.push('/chat/${saved.id}', extra: saved);
     }
   }
 

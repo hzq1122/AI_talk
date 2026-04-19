@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/contact.dart';
 import '../../models/message.dart';
+import '../../models/api_config.dart';
 import '../../providers/contacts_provider.dart';
 import '../../providers/messages_provider.dart';
 import '../../providers/api_config_provider.dart';
@@ -275,6 +276,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('联系人资料'),
+              onTap: () {
+                ctx.pop();
+                context.push('/contact/detail/${contact.id}', extra: contact);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('编辑联系人'),
+              onTap: () {
+                ctx.pop();
+                _editContact(context, contact);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_sweep_outlined),
               title: const Text('清空聊天记录'),
               onTap: () async {
@@ -303,16 +320,146 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('联系人资料'),
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('删除联系人',
+                  style: TextStyle(color: Colors.red)),
               onTap: () {
                 ctx.pop();
-                context.push('/contact/detail/${contact.id}', extra: contact);
+                _deleteContact(context, contact);
               },
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _editContact(BuildContext context, Contact contact) async {
+    final configs = ref.read(apiConfigProvider).value ?? [];
+    final result = await showDialog<Contact>(
+      context: context,
+      builder: (ctx) => _ChatEditContactDialog(
+        contact: contact,
+        configs: configs,
+      ),
+    );
+    if (result != null) {
+      await ref.read(contactsProvider.notifier).updateContact(result);
+    }
+  }
+
+  Future<void> _deleteContact(BuildContext context, Contact contact) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除联系人'),
+        content: Text('确定删除 "${contact.name}"？相关聊天记录将一并删除。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('删除', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(contactsProvider.notifier).remove(contact.id);
+      if (mounted) context.pop();
+    }
+  }
+}
+
+class _ChatEditContactDialog extends StatefulWidget {
+  final Contact contact;
+  final List<ApiConfig> configs;
+  const _ChatEditContactDialog({
+    required this.contact,
+    required this.configs,
+  });
+
+  @override
+  State<_ChatEditContactDialog> createState() =>
+      _ChatEditContactDialogState();
+}
+
+class _ChatEditContactDialogState extends State<_ChatEditContactDialog> {
+  late final _nameCtrl = TextEditingController(text: widget.contact.name);
+  late final _descCtrl =
+      TextEditingController(text: widget.contact.description);
+  late final _promptCtrl =
+      TextEditingController(text: widget.contact.systemPrompt);
+  late String? _selectedConfigId = widget.contact.apiConfigId;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    _promptCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('编辑联系人'),
+      scrollable: true,
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: '名称')),
+            const SizedBox(height: 12),
+            TextField(
+                controller: _descCtrl,
+                decoration: const InputDecoration(labelText: '简介'),
+                maxLines: 2),
+            const SizedBox(height: 12),
+            TextField(
+                controller: _promptCtrl,
+                decoration:
+                    const InputDecoration(labelText: 'System Prompt'),
+                maxLines: 4),
+            if (widget.configs.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _selectedConfigId,
+                decoration: const InputDecoration(labelText: '绑定 API'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('不绑定')),
+                  ...widget.configs.map(
+                    (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _selectedConfigId = v),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消')),
+        ElevatedButton(
+          onPressed: () {
+            if (_nameCtrl.text.trim().isEmpty) return;
+            Navigator.of(context).pop(
+              widget.contact.copyWith(
+                name: _nameCtrl.text.trim(),
+                description: _descCtrl.text.trim(),
+                systemPrompt: _promptCtrl.text.trim(),
+                apiConfigId: _selectedConfigId,
+              ),
+            );
+          },
+          child: const Text('保存'),
+        ),
+      ],
     );
   }
 }

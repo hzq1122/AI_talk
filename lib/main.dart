@@ -6,7 +6,9 @@ import 'services/proactive/proactive_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  ProactiveService().init();
+  final proactive = ProactiveService();
+  proactive.init();
+  proactive.checkOnAppOpen();
   runApp(const ProviderScope(child: TalkAiApp()));
 }
 
