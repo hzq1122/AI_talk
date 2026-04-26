@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 enum CloudType { webdav, s3 }
 
 abstract class CloudStorageConfig {
+  const CloudStorageConfig();
   Map<String, dynamic> toJson();
 }
 

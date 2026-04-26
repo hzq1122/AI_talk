@@ -1,13 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/chat_preset.dart';
 import '../../models/regex_script.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/preset_provider.dart';
 import '../../providers/regex_script_provider.dart';
+import '../../services/backup/cloud_storage.dart';
 import '../../theme/wechat_colors.dart';
 
 class GeneralSettingsPage extends ConsumerWidget {
@@ -257,6 +259,50 @@ class GeneralSettingsPage extends ConsumerWidget {
                       _editWalletBalance(context, ref, settings.walletBalance),
                 ),
               ),
+              const SizedBox(height: 8),
+              // 自动备份
+              _SectionHeader(title: '自动备份'),
+              Container(
+                color: Colors.white,
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: const Text('启用自动备份'),
+                      subtitle: const Text('定期备份数据到云端'),
+                      value: settings.autoBackupEnabled,
+                      activeColor: WeChatColors.primary,
+                      onChanged: (v) => ref
+                          .read(settingsProvider.notifier)
+                          .setAutoBackupEnabled(v),
+                    ),
+                    if (settings.autoBackupEnabled) ...[
+                      const Divider(height: 0, indent: 16),
+                      ListTile(
+                        title: const Text('备份间隔'),
+                        subtitle: Text('${settings.autoBackupInterval} 分钟',
+                            style: const TextStyle(fontSize: 13)),
+                        trailing: const Icon(Icons.chevron_right,
+                            color: WeChatColors.textHint),
+                        onTap: () => _editAutoBackupInterval(
+                            context, ref, settings.autoBackupInterval),
+                      ),
+                      const Divider(height: 0, indent: 16),
+                      ListTile(
+                        title: const Text('云存储配置'),
+                        subtitle: Text(
+                            settings.autoBackupCloudType.isEmpty
+                                ? '未配置'
+                                : settings.autoBackupCloudType.toUpperCase(),
+                            style: const TextStyle(fontSize: 13)),
+                        trailing: const Icon(Icons.chevron_right,
+                            color: WeChatColors.textHint),
+                        onTap: () => _showCloudConfigSheet(
+                            context, ref, settings),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
             ],
           );
@@ -440,6 +486,59 @@ class GeneralSettingsPage extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _editAutoBackupInterval(
+      BuildContext context, WidgetRef ref, int current) {
+    final intervals = [15, 30, 60, 120, 360, 720, 1440];
+    final labels = [
+      '15 分钟',
+      '30 分钟',
+      '1 小时',
+      '2 小时',
+      '6 小时',
+      '12 小时',
+      '24 小时'
+    ];
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('选择备份间隔',
+                  style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+            ...List.generate(intervals.length, (i) => ListTile(
+                  title: Text(labels[i]),
+                  selected: intervals[i] == current,
+                  trailing: intervals[i] == current
+                      ? const Icon(Icons.check, color: WeChatColors.primary)
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(settingsProvider.notifier)
+                        .setAutoBackupInterval(intervals[i]);
+                    Navigator.of(ctx).pop();
+                  },
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCloudConfigSheet(
+      BuildContext context, WidgetRef ref, AppSettings settings) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _CloudConfigSheet(settings: settings, ref: ref),
     );
   }
 
@@ -642,6 +741,267 @@ class _PresetTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CloudConfigSheet extends StatefulWidget {
+  final AppSettings settings;
+  final WidgetRef ref;
+
+  const _CloudConfigSheet({required this.settings, required this.ref});
+
+  @override
+  State<_CloudConfigSheet> createState() => _CloudConfigSheetState();
+}
+
+class _CloudConfigSheetState extends State<_CloudConfigSheet> {
+  late String _cloudType;
+  bool _testing = false;
+  String? _testResult;
+
+  // WebDAV
+  final _webdavUrlCtrl = TextEditingController();
+  final _webdavUserCtrl = TextEditingController();
+  final _webdavPassCtrl = TextEditingController();
+
+  // S3
+  final _s3EndpointCtrl = TextEditingController();
+  final _s3RegionCtrl = TextEditingController();
+  final _s3AccessKeyCtrl = TextEditingController();
+  final _s3SecretKeyCtrl = TextEditingController();
+  final _s3BucketCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _cloudType = widget.settings.autoBackupCloudType.isEmpty
+        ? 'webdav'
+        : widget.settings.autoBackupCloudType;
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    final prefs = await SharedPreferences.getInstance();
+    _webdavUrlCtrl.text = prefs.getString('auto_backup_webdav_url') ?? '';
+    _webdavUserCtrl.text =
+        prefs.getString('auto_backup_webdav_username') ?? '';
+    _webdavPassCtrl.text =
+        prefs.getString('auto_backup_webdav_password') ?? '';
+    _s3EndpointCtrl.text =
+        prefs.getString('auto_backup_s3_endpoint') ?? '';
+    _s3RegionCtrl.text =
+        prefs.getString('auto_backup_s3_region') ?? 'us-east-1';
+    _s3AccessKeyCtrl.text =
+        prefs.getString('auto_backup_s3_access_key') ?? '';
+    _s3SecretKeyCtrl.text =
+        prefs.getString('auto_backup_s3_secret_key') ?? '';
+    _s3BucketCtrl.text = prefs.getString('auto_backup_s3_bucket') ?? '';
+  }
+
+  @override
+  void dispose() {
+    _webdavUrlCtrl.dispose();
+    _webdavUserCtrl.dispose();
+    _webdavPassCtrl.dispose();
+    _s3EndpointCtrl.dispose();
+    _s3RegionCtrl.dispose();
+    _s3AccessKeyCtrl.dispose();
+    _s3SecretKeyCtrl.dispose();
+    _s3BucketCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      minChildSize: 0.5,
+      expand: false,
+      builder: (_, scrollCtrl) => SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Text('云存储配置',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  TextButton(
+                      onPressed: _save,
+                      child: const Text('保存配置',
+                          style: TextStyle(
+                              color: WeChatColors.primary,
+                              fontWeight: FontWeight.w600))),
+                ],
+              ),
+            ),
+            const Divider(height: 0),
+            Expanded(
+              child: ListView(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const Text('存储类型',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: WeChatColors.textSecondary,
+                          fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'webdav', label: Text('WebDAV')),
+                      ButtonSegment(value: 's3', label: Text('S3')),
+                    ],
+                    selected: {_cloudType},
+                    onSelectionChanged: (v) =>
+                        setState(() => _cloudType = v.first),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_cloudType == 'webdav') ..._buildWebDavFields(),
+                  if (_cloudType == 's3') ..._buildS3Fields(),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      icon: _testing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2))
+                          : const Icon(Icons.wifi_find, size: 18),
+                      label: Text(_testing ? '测试中...' : '测试连接'),
+                      onPressed: _testing ? null : _testConnection,
+                    ),
+                  ),
+                  if (_testResult != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _testResult!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _testResult!.contains('成功')
+                            ? WeChatColors.primary
+                            : Colors.red,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildWebDavFields() {
+    return [
+      _buildField('服务器 URL', _webdavUrlCtrl,
+          hint: 'https://dav.example.com/backup'),
+      const SizedBox(height: 12),
+      _buildField('用户名', _webdavUserCtrl, hint: '用户名'),
+      const SizedBox(height: 12),
+      _buildField('密码', _webdavPassCtrl, hint: '密码', obscure: true),
+    ];
+  }
+
+  List<Widget> _buildS3Fields() {
+    return [
+      _buildField('Endpoint', _s3EndpointCtrl,
+          hint: 'https://s3.amazonaws.com'),
+      const SizedBox(height: 12),
+      _buildField('Region', _s3RegionCtrl, hint: 'us-east-1'),
+      const SizedBox(height: 12),
+      _buildField('Access Key', _s3AccessKeyCtrl, hint: 'AKIA...'),
+      const SizedBox(height: 12),
+      _buildField('Secret Key', _s3SecretKeyCtrl,
+          hint: '••••••••', obscure: true),
+      const SizedBox(height: 12),
+      _buildField('Bucket', _s3BucketCtrl, hint: 'my-backup-bucket'),
+    ];
+  }
+
+  Widget _buildField(String label, TextEditingController ctrl,
+      {String? hint, bool obscure = false}) {
+    return TextField(
+      controller: ctrl,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: const TextStyle(fontSize: 13),
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        isDense: true,
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auto_backup_cloud_type', _cloudType);
+    if (_cloudType == 'webdav') {
+      await prefs.setString('auto_backup_webdav_url', _webdavUrlCtrl.text);
+      await prefs.setString(
+          'auto_backup_webdav_username', _webdavUserCtrl.text);
+      await prefs.setString(
+          'auto_backup_webdav_password', _webdavPassCtrl.text);
+    } else {
+      await prefs.setString(
+          'auto_backup_s3_endpoint', _s3EndpointCtrl.text);
+      await prefs.setString('auto_backup_s3_region', _s3RegionCtrl.text);
+      await prefs.setString(
+          'auto_backup_s3_access_key', _s3AccessKeyCtrl.text);
+      await prefs.setString(
+          'auto_backup_s3_secret_key', _s3SecretKeyCtrl.text);
+      await prefs.setString('auto_backup_s3_bucket', _s3BucketCtrl.text);
+    }
+    widget.ref
+        .read(settingsProvider.notifier)
+        .setAutoBackupCloudType(_cloudType);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _testConnection() async {
+    setState(() {
+      _testing = true;
+      _testResult = null;
+    });
+
+    try {
+      // Import locally to avoid issues
+      final storage = _cloudType == 'webdav'
+          ? WebDavStorage(WebDavConfig(
+              url: _webdavUrlCtrl.text,
+              username: _webdavUserCtrl.text,
+              password: _webdavPassCtrl.text,
+            ))
+          : S3Storage(S3Config(
+              endpoint: _s3EndpointCtrl.text,
+              region: _s3RegionCtrl.text,
+              accessKey: _s3AccessKeyCtrl.text,
+              secretKey: _s3SecretKeyCtrl.text,
+              bucket: _s3BucketCtrl.text,
+            ));
+
+      final ok = await storage.testConnection();
+      setState(() {
+        _testing = false;
+        _testResult = ok ? '连接成功' : '连接失败';
+      });
+    } catch (e) {
+      setState(() {
+        _testing = false;
+        _testResult = '连接失败: $e';
+      });
+    }
   }
 }
 

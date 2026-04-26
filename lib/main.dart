@@ -5,6 +5,7 @@ import 'router.dart';
 import 'theme/wechat_theme.dart';
 import 'services/proactive/proactive_service.dart';
 import 'services/update/update_service.dart';
+import 'services/backup/auto_backup_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,8 @@ void main() async {
   if (prefs.getBool('check_update_on_startup') ?? false) {
     UpdateService().checkUpdate(); // fire-and-forget
   }
+
+  AutoBackupService().init();
 
   runApp(const ProviderScope(child: TalkAiApp()));
 }
