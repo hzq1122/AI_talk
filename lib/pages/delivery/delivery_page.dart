@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/cart_item.dart';
+import '../../models/wallet_transaction.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../theme/wechat_colors.dart';
 
 class DeliveryPage extends ConsumerWidget {
@@ -15,30 +17,64 @@ class DeliveryPage extends ConsumerWidget {
       _FoodItem('芋泥波波奶茶', 15.0),
       _FoodItem('椰椰拿铁', 18.0),
       _FoodItem('杨枝甘露', 16.0),
+      _FoodItem('黑糖脏脏茶', 17.0),
+      _FoodItem('芝士莓莓', 21.0),
+      _FoodItem('多肉葡萄', 23.0),
+      _FoodItem('手打柠檬茶', 11.0),
     ]),
     _MenuItem('咖啡', [
       _FoodItem('美式咖啡', 9.0),
       _FoodItem('生椰拿铁', 16.0),
       _FoodItem('摩卡', 18.0),
       _FoodItem('卡布奇诺', 15.0),
+      _FoodItem('冰博克拿铁', 22.0),
+      _FoodItem('冷萃咖啡', 19.0),
+      _FoodItem('焦糖玛奇朵', 20.0),
     ]),
     _MenuItem('小吃', [
       _FoodItem('鸡排', 12.0),
       _FoodItem('烤肠', 5.0),
       _FoodItem('薯条', 8.0),
       _FoodItem('炸鸡翅', 15.0),
+      _FoodItem('鸡米花', 10.0),
+      _FoodItem('洋葱圈', 7.0),
+      _FoodItem('烤鸡腿', 13.0),
+      _FoodItem('玉米棒', 6.0),
     ]),
     _MenuItem('快餐', [
       _FoodItem('黄焖鸡米饭', 18.0),
       _FoodItem('蛋炒饭', 12.0),
       _FoodItem('牛肉面', 22.0),
       _FoodItem('麻辣烫', 20.0),
+      _FoodItem('宫保鸡丁盖饭', 19.0),
+      _FoodItem('红烧肉盖饭', 21.0),
+      _FoodItem('鱼香肉丝饭', 17.0),
+      _FoodItem('番茄牛腩面', 25.0),
     ]),
     _MenuItem('甜品', [
-      _FoodItem('蛋糕', 25.0),
+      _FoodItem('提拉米苏', 25.0),
+      _FoodItem('芒果千层', 22.0),
       _FoodItem('冰淇淋', 8.0),
       _FoodItem('华夫饼', 15.0),
       _FoodItem('布丁', 10.0),
+      _FoodItem('熔岩蛋糕', 28.0),
+      _FoodItem('抹茶慕斯', 20.0),
+    ]),
+    _MenuItem('炸鸡汉堡', [
+      _FoodItem('香辣鸡腿堡', 16.0),
+      _FoodItem('劲脆鸡腿堡', 15.0),
+      _FoodItem('新奥尔良烤堡', 19.0),
+      _FoodItem('鸡米花(大)', 12.0),
+      _FoodItem('吮指原味鸡', 11.0),
+      _FoodItem('炸鸡全家桶', 59.0),
+    ]),
+    _MenuItem('中餐', [
+      _FoodItem('酸菜鱼', 38.0),
+      _FoodItem('回锅肉', 22.0),
+      _FoodItem('麻婆豆腐', 15.0),
+      _FoodItem('糖醋里脊', 25.0),
+      _FoodItem('蒜蓉菜心', 12.0),
+      _FoodItem('西红柿蛋汤', 8.0),
     ]),
   ];
 
@@ -71,23 +107,29 @@ class DeliveryPage extends ConsumerWidget {
       body: Column(
         children: [
           // 钱包余额条
-          Container(
-            color: Colors.white,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                const Icon(Icons.account_balance_wallet,
-                    color: Color(0xFFFF6B35), size: 20),
-                const SizedBox(width: 8),
-                Text('钱包余额',
-                    style: TextStyle(
-                        color: WeChatColors.textSecondary, fontSize: 13)),
-                const Spacer(),
-                Text('¥${balance.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
-              ],
+          GestureDetector(
+            onTap: () => _showWalletDialog(context, ref, balance),
+            child: Container(
+              color: Colors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet,
+                      color: Color(0xFFFF6B35), size: 20),
+                  const SizedBox(width: 8),
+                  const Text('钱包余额',
+                      style: TextStyle(
+                          color: WeChatColors.textSecondary, fontSize: 13)),
+                  const Spacer(),
+                  Text('¥${balance.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right,
+                      size: 18, color: WeChatColors.textHint),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -127,46 +169,9 @@ class DeliveryPage extends ConsumerWidget {
 
   void _showWalletDialog(
       BuildContext context, WidgetRef ref, double balance) {
-    final ctrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('钱包充值'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('当前余额: ¥${balance.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: '充值金额',
-                prefixText: '¥ ',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('取消')),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(ctrl.text.trim());
-              if (amount != null && amount > 0) {
-                ref
-                    .read(settingsProvider.notifier)
-                    .setWalletBalance(balance + amount);
-                Navigator.of(ctx).pop();
-              }
-            },
-            child: const Text('充值'),
-          ),
-        ],
-      ),
+      builder: (ctx) => _WalletDialog(balance: balance),
     );
   }
 
@@ -182,23 +187,34 @@ class DeliveryPage extends ConsumerWidget {
     if (total > balance) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('余额不足，请先充值'),
-            backgroundColor: Colors.red),
+            content: Text('余额不足，请先充值'), backgroundColor: Colors.red),
       );
       return;
     }
+    final cartItems = ref.read(cartProvider).value ?? [];
+    final itemsDesc = cartItems.map((i) => '${i.name} x${i.quantity}').join('、');
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('确认下单'),
-        content: Text('共计 ¥${total.toStringAsFixed(2)}，确认支付？'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(itemsDesc, style: const TextStyle(fontSize: 13)),
+            const SizedBox(height: 8),
+            Text('共计 ¥${total.toStringAsFixed(2)}，确认支付？'),
+          ],
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('取消')),
+              onPressed: () => Navigator.of(ctx).pop(), child: const Text('取消')),
           ElevatedButton(
             onPressed: () {
-              ref.read(settingsProvider.notifier).deductBalance(total);
+              ref.read(walletProvider.notifier).spend(
+                    total,
+                    '外卖: $itemsDesc',
+                  );
               ref.read(cartProvider.notifier).clearCart();
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
@@ -212,6 +228,245 @@ class DeliveryPage extends ConsumerWidget {
     );
   }
 }
+
+// ─── 钱包弹窗（含交易记录） ────────────────────────────────────────────────────────
+
+class _WalletDialog extends ConsumerStatefulWidget {
+  final double balance;
+  const _WalletDialog({required this.balance});
+
+  @override
+  ConsumerState<_WalletDialog> createState() => _WalletDialogState();
+}
+
+class _WalletDialogState extends ConsumerState<_WalletDialog> {
+  late final _amountCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final txAsync = ref.watch(walletProvider);
+    final transactions = txAsync.value ?? [];
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Text('钱包'),
+          const Spacer(),
+          Text('¥${widget.balance.toStringAsFixed(2)}',
+              style: const TextStyle(
+                  color: Color(0xFFFF6B35),
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 快捷充值
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              _QuickAmountChip(amount: 50, onTap: () => _recharge(50)),
+              _QuickAmountChip(amount: 100, onTap: () => _recharge(100)),
+              _QuickAmountChip(amount: 200, onTap: () => _recharge(200)),
+              _QuickAmountChip(amount: 500, onTap: () => _recharge(500)),
+            ]),
+            const SizedBox(height: 12),
+            // 自定义金额行
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _amountCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: '金额',
+                    prefixText: '¥ ',
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _rechargeCustom,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16)),
+                child: const Text('充值'),
+              ),
+              const SizedBox(width: 4),
+              ElevatedButton(
+                onPressed: _spendCustom,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16)),
+                child: const Text('支出'),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            // 交易记录
+            Row(children: [
+              const Text('交易记录',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              if (transactions.isNotEmpty)
+                GestureDetector(
+                  onTap: () => ref.read(walletProvider.notifier).clearHistory(),
+                  child: const Text('清空',
+                      style: TextStyle(fontSize: 12, color: Colors.red)),
+                ),
+            ]),
+            const Divider(),
+            if (transactions.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('暂无交易记录',
+                    style: TextStyle(color: WeChatColors.textHint, fontSize: 13)),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: transactions.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final tx = transactions[i];
+                    final isRecharge = tx.type == 'recharge';
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(children: [
+                        Icon(
+                          isRecharge
+                              ? Icons.add_circle_outline
+                              : Icons.remove_circle_outline,
+                          size: 18,
+                          color: isRecharge ? Colors.green : Colors.red,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(tx.description,
+                                  style: const TextStyle(fontSize: 13)),
+                              Text(
+                                '${tx.createdAt.month}/${tx.createdAt.day} ${tx.createdAt.hour.toString().padLeft(2, '0')}:${tx.createdAt.minute.toString().padLeft(2, '0')}',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: WeChatColors.textHint),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          isRecharge
+                              ? '+¥${tx.amount.toStringAsFixed(2)}'
+                              : '-¥${tx.amount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isRecharge ? Colors.green : Colors.red,
+                          ),
+                        ),
+                      ]),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭')),
+      ],
+    );
+  }
+
+  void _recharge(double amount) {
+    ref.read(walletProvider.notifier).recharge(amount);
+  }
+
+  void _rechargeCustom() {
+    final amount = double.tryParse(_amountCtrl.text.trim());
+    if (amount != null && amount > 0) {
+      ref.read(walletProvider.notifier).recharge(amount);
+      _amountCtrl.clear();
+    }
+  }
+
+  void _spendCustom() {
+    final amount = double.tryParse(_amountCtrl.text.trim());
+    if (amount != null && amount > 0) {
+      _showSpendReason(amount);
+    }
+  }
+
+  void _showSpendReason(double amount) {
+    final descCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('支出明细'),
+        content: TextField(
+          controller: descCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '用途说明',
+            hintText: '例如：给xxx点了奶茶',
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () {
+              final desc = descCtrl.text.trim();
+              if (desc.isEmpty) return;
+              ref.read(walletProvider.notifier).spend(amount, desc);
+              _amountCtrl.clear();
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAmountChip extends StatelessWidget {
+  final double amount;
+  final VoidCallback onTap;
+  const _QuickAmountChip({required this.amount, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text('¥${amount.toStringAsFixed(0)}',
+          style: const TextStyle(fontSize: 12)),
+      backgroundColor: const Color(0xFFF0FFF0),
+      side: const BorderSide(color: Color(0xFF07C160), width: 0.5),
+      onPressed: onTap,
+    );
+  }
+}
+
+// ─── 购物车 ────────────────────────────────────────────────────────────────────────
 
 class _CartBar extends StatelessWidget {
   final int itemCount;
@@ -254,8 +509,7 @@ class _CartBar extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Icon(Icons.shopping_cart,
-                    color: Colors.white, size: 28),
+                const Icon(Icons.shopping_cart, color: Colors.white, size: 28),
                 Positioned(
                   right: -8,
                   top: -6,
@@ -320,24 +574,22 @@ class _CartSheet extends StatelessWidget {
             child: Row(
               children: [
                 const Text('购物车',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const Spacer(),
                 TextButton(
                   onPressed: () {
                     ref.read(cartProvider.notifier).clearCart();
                     Navigator.of(context).pop();
                   },
-                  child: const Text('清空',
-                      style: TextStyle(color: Colors.red)),
+                  child: const Text('清空', style: TextStyle(color: Colors.red)),
                 ),
               ],
             ),
           ),
           const Divider(height: 0),
           ConstrainedBox(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.4),
+            constraints:
+                BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
             child: ListView.builder(
               shrinkWrap: true,
               itemCount: cartItems.length,
@@ -345,27 +597,22 @@ class _CartSheet extends StatelessWidget {
                 final item = cartItems[index];
                 return ListTile(
                   title: Text(item.name),
-                  subtitle:
-                      Text('¥${item.price.toStringAsFixed(2)}'),
+                  subtitle: Text('¥${item.price.toStringAsFixed(2)}'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.remove_circle_outline,
-                            size: 20),
+                        icon: const Icon(Icons.remove_circle_outline, size: 20),
                         onPressed: () => ref
                             .read(cartProvider.notifier)
-                            .updateQuantity(
-                                item.id, item.quantity - 1),
+                            .updateQuantity(item.id, item.quantity - 1),
                       ),
                       Text('${item.quantity}'),
                       IconButton(
-                        icon: const Icon(Icons.add_circle_outline,
-                            size: 20),
+                        icon: const Icon(Icons.add_circle_outline, size: 20),
                         onPressed: () => ref
                             .read(cartProvider.notifier)
-                            .updateQuantity(
-                                item.id, item.quantity + 1),
+                            .updateQuantity(item.id, item.quantity + 1),
                       ),
                     ],
                   ),
@@ -378,8 +625,7 @@ class _CartSheet extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Text('合计: ',
-                    style: TextStyle(fontSize: 14)),
+                const Text('合计: ', style: TextStyle(fontSize: 14)),
                 Text('¥${total.toStringAsFixed(2)}',
                     style: const TextStyle(
                         fontSize: 18,
@@ -398,10 +644,7 @@ class _CategorySection extends StatelessWidget {
   final _MenuItem category;
   final void Function(_FoodItem food) onAdd;
 
-  const _CategorySection({
-    required this.category,
-    required this.onAdd,
-  });
+  const _CategorySection({required this.category, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {

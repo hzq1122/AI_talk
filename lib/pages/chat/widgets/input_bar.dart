@@ -220,6 +220,10 @@ class _InputBarState extends ConsumerState<InputBar> {
       {'name': '蛋炒饭', 'price': 12.0},
       {'name': '炸鸡翅', 'price': 15.0},
       {'name': '薯条', 'price': 8.0},
+      {'name': '提拉米苏', 'price': 25.0},
+      {'name': '香辣鸡腿堡', 'price': 16.0},
+      {'name': '酸菜鱼', 'price': 38.0},
+      {'name': '麻婆豆腐', 'price': 15.0},
     ];
     final selected = <int>{};
     showDialog(

@@ -18,7 +18,7 @@ class DatabaseService {
     final path = join(dbPath, 'talk_ai.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onOpen: _onOpen,
@@ -146,6 +146,19 @@ class DatabaseService {
       )
     ''');
     await db.execute('CREATE INDEX idx_memory_entries_contact_id ON memory_entries(contact_id)');
+
+    await db.execute('''
+      CREATE TABLE wallet_transactions (
+        id TEXT PRIMARY KEY,
+        amount REAL NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'spend',
+        description TEXT NOT NULL DEFAULT '',
+        contact_id TEXT,
+        contact_name TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_wallet_tx_created_at ON wallet_transactions(created_at)');
   }
 
   Future<void> _onOpen(Database db) async {
@@ -224,6 +237,20 @@ class DatabaseService {
         )
       ''');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_memory_entries_contact_id ON memory_entries(contact_id)');
+    }
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS wallet_transactions (
+          id TEXT PRIMARY KEY,
+          amount REAL NOT NULL DEFAULT 0,
+          type TEXT NOT NULL DEFAULT 'spend',
+          description TEXT NOT NULL DEFAULT '',
+          contact_id TEXT,
+          contact_name TEXT,
+          created_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_wallet_tx_created_at ON wallet_transactions(created_at)');
     }
   }
 

@@ -226,6 +226,22 @@ class GeneralSettingsPage extends ConsumerWidget {
                       _editMomentsInterval(context, ref, settings.momentsIntervalMinutes),
                 ),
               ),
+              const SizedBox(height: 8),
+              // 钱包
+              _SectionHeader(title: '钱包'),
+              Container(
+                color: Colors.white,
+                child: ListTile(
+                  title: const Text('钱包余额'),
+                  subtitle: Text(
+                      '¥${settings.walletBalance.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13)),
+                  trailing: const Icon(Icons.chevron_right,
+                      color: WeChatColors.textHint),
+                  onTap: () =>
+                      _editWalletBalance(context, ref, settings.walletBalance),
+                ),
+              ),
               const SizedBox(height: 24),
             ],
           );
@@ -408,6 +424,51 @@ class GeneralSettingsPage extends ConsumerWidget {
             const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+
+  void _editWalletBalance(
+      BuildContext context, WidgetRef ref, double current) {
+    final ctrl = TextEditingController(text: current.toStringAsFixed(2));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('自定义钱包余额'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('仅用于测试调整，实际使用请通过钱包充值/支出',
+                style: TextStyle(fontSize: 12, color: Colors.orange)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: '余额',
+                prefixText: '¥ ',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(ctrl.text.trim());
+              if (amount != null && amount >= 0) {
+                ref
+                    .read(settingsProvider.notifier)
+                    .setWalletBalance(amount);
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('设置'),
+          ),
+        ],
       ),
     );
   }
